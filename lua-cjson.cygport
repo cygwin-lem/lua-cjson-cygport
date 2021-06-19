@@ -1,0 +1,140 @@
+NAME="lua-cjson"
+VERSION=2.1.0.9
+RELEASE=1
+CATEGORY="Lua"
+SUMMARY="A fast JSON encoding/parsing module"
+DESCRIPTION="\
+The Lua CJSON module provides JSON support for Lua. It features:
+  - Fast, standards compliant encoding/parsing routines
+  - Full support for JSON with UTF-8, including decoding surrogate pairs
+  - Optional run-time support for common exceptions to the JSON specification (infinity, NaN,..)
+  - No dependencies on other libraries
+"
+HOMEPAGE="https://github.com/openresty/lua-cjson/"
+
+GIT_REPO="https://github.com/openresty/lua-cjson"
+declare -A GIT_DATEHASH_BY_NAME=(
+  # git log --date=iso-strict --format='%cd/%H' -1
+  [2.1.0.9]=2021-02-15T10:58:29-08:00/891962b11d6d3b1b7275550b5c109e16c73ac94f
+)
+REV_HASH="${GIT_DATEHASH_BY_NAME[${VERSION}]#*/}"
+REV_DATE="${GIT_DATEHASH_BY_NAME[${VERSION}]%/*}"
+REV_DATE_SHORT="${REV_DATE%%T*}"
+GIT_BASENAME="${GIT_REPO##*/}"
+SRC_URI="${GIT_REPO}/archive/${REV_HASH}/${GIT_BASENAME}-${VERSION}.tar.gz"
+SRC_DIR="${GIT_BASENAME}-${REV_HASH#v}"
+
+################################
+LUA_VERSIONS="5.3:5.4"
+LUA_PKG_NAME="${NAME#lua-}"
+source lua.experiment
+
+################################
+## Patch files
+################################
+# Patch filenames are in a default style of 'git format-patch'
+PATCH_URI=$(\
+  find -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9]-*.patch' \
+  | sort \
+)
+# Additional patches, if any
+PATCH_URI+="
+  2.1.0.9-Makefile.patch
+"
+
+################################
+## Requirements for building
+################################
+BUILD_REQUIRES="\
+  lua53-devel\
+  lua54-devel\
+"
+# TEST_REQUIRES="\
+# "
+
+################################
+ABI=0
+
+
+################################
+_CYGPORT_RESTRICT_postinst_doc_=1
+
+set_packages_lua() {
+  __add_pkg "lua${LUA_VERSION_CYG}-${LUA_PKG_NAME}"
+  __set_pkg_property . CONTENTS "
+    usr/share/doc/lua${LUA_VERSION_CYG}-${LUA_PKG_NAME}/
+    usr/*/lua/${LUA_VERSION}/
+  "
+  __set_pkg_property . REQUIRES "lua${LUA_VERSION_CYG}"
+
+  __append_pkg_property . CONTENTS "
+    usr/bin/*-${LUA_VERSION}
+    etc/p*/lua${LUA_VERSION_CYG}-${LUA_PKG_NAME}.sh
+  "
+}
+
+set_packages_lua_versions ${LUA_VERSIONS} ${LUA_PKG_NAME}
+
+################################
+src_compile_lua() {
+  mkdir -p ${B}/${LUA_VERSION}
+  cd  ${B}/${LUA_VERSION}
+
+  lndirs ${S} .
+
+  cygmake \
+    LUA_VERSION=${LUA_VERSION} \
+    PREFIX=/usr \
+    CFLAGS="${CFLAGS}" \
+    LUA_CMODULE_DIR=${LUA_LIBDIR} \
+    LUA_INCLUDE_DIR=${LUA_INCLUDEDIR} \
+    LUA_MODULE_DIR=${LUA_SCRIPTDIR} \
+    LIBS="${LUA_LIBS}" \
+  ;
+
+  lua_fix_shebang_version_print ${LUA_VERSION} lua/json2lua.lua > json2lua-${LUA_VERSION}
+  chmod 755 json2lua-${LUA_VERSION}
+  lua_fix_shebang_version_print ${LUA_VERSION} lua/lua2json.lua > lua2json-${LUA_VERSION}
+  chmod 755 lua2json-${LUA_VERSION}
+}
+
+################################
+src_install_lua() {
+  cd ${B}/${LUA_VERSION}
+
+  __doinsdir lua/cjson ${LUA_SCRIPTDIR}/${LUA_PKG_NAME}
+  exeinto ${LUA_LIBDIR}/${LUA_PKG_NAME}
+  doexe cjson.so
+
+  dobin json2lua-${LUA_VERSION}
+  dobin lua2json-${LUA_VERSION}
+
+  dodoc LICENSE NEWS THANKS *.md m*.txt p*.txt r*.txt *.rockspec
+
+  # postinstall/preremove scripts setting alternatives
+  local POSTINSTALL=./postinstall/lua${LUA_VERSION_CYG}-${LUA_PKG_NAME}.sh
+  local PREREMOVE=./preremove/lua${LUA_VERSION_CYG}-${LUA_PKG_NAME}.sh
+
+  mkdir -p ./postinstall
+  mkdir -p ./preremove
+
+  __script_postinstall_lua ${LUA_VERSION} ${LUA_PKG_NAME} <<_EOF > ${POSTINSTALL}
+--slave /usr/bin/json2lua json2lua /usr/bin/json2lua-\${LUA_VERSION} \\
+--slave /usr/bin/lua2json lua2json /usr/bin/lua2json-\${LUA_VERSION} \\
+_EOF
+  __script_preremove_lua ${LUA_VERSION} ${LUA_PKG_NAME} > ${PREREMOVE}
+
+  insinto /etc/postinstall
+  doins ${POSTINSTALL}
+  insinto /etc/preremove
+  doins ${PREREMOVE}
+}
+
+################################
+src_test_lua() {
+  cd ${B}/${LUA_VERSION}
+
+  echo "No test suite."
+}
+
+################################

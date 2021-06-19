@@ -1,0 +1,11 @@
+--- origsrc/lua-cjson-891962b11d6d3b1b7275550b5c109e16c73ac94f/Makefile	2021-02-16 03:58:29.000000000 +0900
++++ src/lua-cjson-891962b11d6d3b1b7275550b5c109e16c73ac94f/Makefile
+@@ -97,7 +97,7 @@ all: $(TARGET)
+ doc: manual.html performance.html
+ 
+ $(TARGET): $(OBJS)
+-	$(CC) $(LDFLAGS) $(CJSON_LDFLAGS) -o $@ $(OBJS)
++	$(CC) $(LDFLAGS) $(CJSON_LDFLAGS) -o $@ $(OBJS) $(LIBS)
+ 
+ install: $(TARGET)
+ 	mkdir -p $(DESTDIR)$(LUA_CMODULE_DIR)
