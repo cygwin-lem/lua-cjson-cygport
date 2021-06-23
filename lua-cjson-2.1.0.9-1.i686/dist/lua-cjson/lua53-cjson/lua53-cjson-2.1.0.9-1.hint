@@ -1,5 +1,5 @@
 category: Lua
-requires: bash cygwin lua53 lua53
+requires: bash cygwin lua53
 sdesc: "A fast JSON encoding/parsing module"
 ldesc: "The Lua CJSON module provides JSON support for Lua. It features:
   - Fast, standards compliant encoding/parsing routines
